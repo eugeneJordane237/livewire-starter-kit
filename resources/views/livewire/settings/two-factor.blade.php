@@ -81,7 +81,6 @@ new class extends Component {
         $user = auth()->user();
         $this->qrCodeSvg = $user->twoFactorQrCodeSvg();
         $this->manualSetupKey = decrypt($user->two_factor_secret);
-        $this->recoveryCodes = json_decode(decrypt($user->two_factor_recovery_codes), true);
     }
 
     public function proceedToVerification(): void
@@ -103,6 +102,7 @@ new class extends Component {
 
     public function confirmTwoFactor(ConfirmTwoFactorAuthentication $confirmTwoFactorAuthentication): void
     {
+        dd($this);
         $this->validate();
         $confirmTwoFactorAuthentication(auth()->user(), $this->authCode);
         $this->twoFactorEnabled = true;
@@ -133,7 +133,7 @@ new class extends Component {
         if ($this->twoFactorEnabled) {
             $this->clearSetupData();
         }
-        
+
         $this->dispatch('hide-two-factor-modal');
     }
 
@@ -278,8 +278,8 @@ new class extends Component {
                 </div>
             @endif
 
-            <flux:modal 
-                name="two-factor-modal" 
+            <flux:modal
+                name="two-factor-modal"
                 class="max-w-md"
                 x-on:show-two-factor-modal.window="$flux.modal('two-factor-modal').show()"
                 x-on:hide-two-factor-modal.window="$flux.modal('two-factor-modal').close()"

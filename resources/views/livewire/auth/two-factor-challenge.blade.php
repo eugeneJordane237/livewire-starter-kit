@@ -4,7 +4,7 @@
             showRecoveryInput: {{ $errors->has('recovery_code') ? 'true' : 'false' }},
             code: '',
             recovery_code: ''
-        }" class="relative w-full h-auto">
+        }" class="relative w-full h-auto" >
             <div x-show="!showRecoveryInput">
                 <x-auth-header :title="__('Authentication Code')" :description="__('Enter the authentication code provided by your authenticator application.')" />
             </div>
@@ -12,7 +12,7 @@
                 <x-auth-header :title="__('Recovery Code')" :description="__('Please confirm access to your account by entering one of your emergency recovery codes.')" />
             </div>
 
-            <form method="POST" action="{{ route('two-factor.login.store') }}">
+            <form method="POST" action="{{ route('two-factor.login.store') }}" x-cloak>
                 @csrf
 
                 <div class="space-y-5 text-center">
@@ -25,7 +25,7 @@
                             <p class="my-2 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
-                    <div x-show="showRecoveryInput" x-cloak>
+                    <div x-show="showRecoveryInput">
                         <div class="my-5">
                             <flux:input type="text" name="recovery_code" x-ref="recovery_code"
                                 x-bind:required="showRecoveryInput" autocomplete="one-time-code"
