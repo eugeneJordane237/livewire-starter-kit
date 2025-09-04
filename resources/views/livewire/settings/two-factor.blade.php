@@ -102,7 +102,6 @@ new class extends Component {
 
     public function confirmTwoFactor(ConfirmTwoFactorAuthentication $confirmTwoFactorAuthentication): void
     {
-        dd($this);
         $this->validate();
         $confirmTwoFactorAuthentication(auth()->user(), $this->authCode);
         $this->twoFactorEnabled = true;
@@ -152,6 +151,13 @@ new class extends Component {
         $this->showRecoveryCodes = !$this->showRecoveryCodes;
     }
 
+    public function fetchRecoveryCodes(): void
+    {
+        if (!$this->recoveryCodes) {
+            $this->loadRecoveryCodes();
+        }
+    }
+
     private function loadRecoveryCodes(): void
     {
         $this->recoveryCodes = json_decode(decrypt(auth()->user()->two_factor_recovery_codes), true);
@@ -162,14 +168,15 @@ new class extends Component {
     @include('partials.settings-heading')
     <x-settings.layout :heading="__('Two Factor Authentication')"
                        :subheading="__('Manage your two-factor authentication settings')">
-        <div class="flex flex-col w-full mx-auto text-sm space-y-6">
+        <div class="flex flex-col w-full mx-auto text-sm space-y-6" wire:cloak>
             @if(!$twoFactorEnabled)
                 <div class="relative flex flex-col items-start rounded-xl justify-start space-y-4">
                     <flux:badge color="red">Disabled</flux:badge>
-                    <p class="text-stone-500 dark:text-stone-400">
+                    <flux:text variant="subtle">
                         When you enable two-factor authentication, you will be prompted for a secure pin during login.
                         This pin can be retrieved from a TOTP-supported application on your phone.
-                    </p>
+                    </flux:text>
+
                     <div class="w-auto">
                         <flux:button
                             variant="primary"
@@ -188,78 +195,93 @@ new class extends Component {
                     <div>
                         <flux:badge color="green">Enabled</flux:badge>
                     </div>
-                    <p class="text-stone-500 dark:text-stone-400">
+                    <flux:text>
                         With two-factor authentication enabled, you will be prompted for a secure, random pin during
                         login,
                         which you can retrieve from the TOTP-supported application on your phone.
-                    </p>
+                    </flux:text>
 
-                    <div>
-                        <flux:callout icon="lock-keyhole-open" color="gray" class="rounded-b-none">
-                            <flux:callout.heading>2FA Recovery Codes</flux:callout.heading>
-                            <flux:callout.text>
-                                Recovery codes let you regain access if you lose your 2FA device. Store them in a
-                                secure
-                                password manager.
-                            </flux:callout.text>
-                        </flux:callout>
-                        <div
-                            class="bg-stone-100 dark:bg-stone-800 rounded-b-xl border-t-0 border border-stone-200 dark:border-stone-700 text-sm">
-                            <div
-                                wire:click="toggleRecoveryCodes"
-                                class="h-10 group cursor-pointer flex items-center select-none justify-between px-5 text-xs"
-                            >
-                                <div class="relative transition-opacity duration-200"
-                                    @class([
-                                        'opacity-40 group-hover:opacity-60' => !$showRecoveryCodes,
-                                        'opacity-60' => $showRecoveryCodes
-                                    ])>
-                                    @if(!$showRecoveryCodes)
-                                        <span class="flex items-center space-x-1">
-                                                <flux:icon.eye class="size-4"/>
-                                                <span>View My Recovery Codes</span>
-                                            </span>
-                                    @else
-                                        <span class="flex items-center space-x-1">
-                                                <flux:icon.eye-off class="size-4"/>
-                                                <span>Hide Recovery Codes</span>
-                                            </span>
-                                    @endif
-                                </div>
-                                @if($showRecoveryCodes)
-                                    <flux:button
-                                        size="xs"
-                                        variant="filled"
-                                        class="text-stone-600"
-                                        wire:click.stop="regenerateRecoveryCodes"
-                                        wire:loading.attr="disabled"
-                                        wire:target="regenerateRecoveryCodes"
-                                    >
-                                            <span wire:loading.remove
-                                                  wire:target="regenerateRecoveryCodes">{{ __('Regenerate Codes') }}</span>
-                                        <span wire:loading
-                                              wire:target="regenerateRecoveryCodes">{{ __('Regenerating...') }}</span>
-                                    </flux:button>
-                                @endif
+                    <div
+                        class="flex flex-col gap-6 rounded-xl border border-zinc-200 dark:border-white/10 py-6 shadow-sm"
+                        x-data="{ showRecoveryCodes: {{ $showRecoveryCodes ? 'true' : 'false' }} }">
+                        <div class="flex flex-col gap-1.5 px-6">
+                            <div class="flex gap-2">
+                                <flux:icon name="lock-keyhole" class="size-4"/>
+                                <flux:heading>
+                                    2FA Recovery Codes
+                                </flux:heading>
                             </div>
-                            @if($showRecoveryCodes)
-                                <div class="relative">
+                            <flux:text variant="subtle">
+                                Recovery codes let you regain access if you lose your 2FA device. Store them in a
+                                secure password manager.
+                            </flux:text>
+                        </div>
+                        <div class="px-6">
+                            <div class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between">
+                                <flux:button
+                                    x-show="!showRecoveryCodes"
+                                    icon="eye"
+                                    variant="primary"
+                                    @click="showRecoveryCodes = true"
+                                    aria-expanded="false"
+                                    aria-controls="recovery-codes-section"
+                                >
+                                    View Recovery Codes
+                                </flux:button>
+                                <flux:button
+                                    x-show="showRecoveryCodes"
+                                    icon="eye-off"
+                                    variant="primary"
+                                    @click="showRecoveryCodes = false"
+                                    aria-expanded="true"
+                                    aria-controls="recovery-codes-section"
+                                >
+                                    Hide Recovery Codes
+                                </flux:button>
+                                <flux:button
+                                    x-show="showRecoveryCodes"
+                                    icon="arrow-path"
+                                    variant="filled"
+                                    wire:click="regenerateRecoveryCodes"
+                                    aria-describedby="regenerate-warning"
+                                >
+                                    <span wire:loading.remove
+                                          wire:target="regenerateRecoveryCodes">{{ __('Regenerate Codes') }}</span>
+                                    <span wire:loading
+                                          wire:target="regenerateRecoveryCodes">{{ __('Regenerating...') }}</span>
+                                </flux:button>
+                            </div>
+                            <div
+                                x-show="showRecoveryCodes"
+                                x-transition
+                                id="recovery-codes-section"
+                                class="relative overflow-hidden"
+                                x-bind:aria-hidden="!showRecoveryCodes"
+                            >
+                                <div class="mt-3 space-y-3">
                                     <div
-                                        class="grid max-w-xl gap-1 px-4 py-4 font-mono text-sm bg-stone-200 dark:bg-stone-900 dark:text-stone-100">
-                                        @forelse($recoveryCodes as $code)
-                                            <div>{{ $code }}</div>
-                                        @empty
-                                            <div class="text-stone-500">No recovery codes available</div>
-                                        @endforelse
+                                        class="grid gap-1 rounded-lg p-4 bg-zinc-200 dark:bg-white/10 font-mono text-sm selection:bg-accent selection:text-accent-foreground"
+                                        role="list" aria-label="Recovery codes">
+
+                                        @foreach($recoveryCodes as $index => $code)
+                                            <div role="listitem"
+                                                 wire:loading
+                                                 class="animate-pulse h-4 opacity-20 rounded bg-zinc-200/80 dark:bg-white/30"
+                                            ></div>
+                                            <div role="listitem" wire:loading.class="hidden"
+                                                 class="select-text">{{ $code }}</div>
+                                        @endforeach
+
                                     </div>
-                                    <p class="px-4 py-3 text-xs select-none text-stone-500 dark:text-stone-400">
-                                        You have {{ count($recoveryCodes) }} recovery codes left.
-                                        Each can be used once to access your account and will be removed after use.
+                                    <flux:text variant="subtle" class="text-xs">
+                                        Each recovery code can be used once to access your account and will be
+                                        removed after use.
                                         If you need more, click <span class="font-bold">Regenerate Codes</span>
                                         above.
-                                    </p>
+                                    </flux:text>
+
                                 </div>
-                            @endif
+                            </div>
                         </div>
                     </div>
 
